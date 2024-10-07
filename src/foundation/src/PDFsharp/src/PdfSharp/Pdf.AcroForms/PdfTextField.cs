@@ -2,6 +2,7 @@
 // See the LICENSE file in the solution root for more information.
 
 using PdfSharp.Drawing;
+using PdfSharp.Drawing.Layout;
 using PdfSharp.Pdf.Advanced;
 using PdfSharp.Pdf.Annotations;
 using PdfSharp.Pdf.Internal;
@@ -92,7 +93,7 @@ namespace PdfSharp.Pdf.AcroForms
         /// Creates the normal appearance form X object for the annotation that represents
         /// this acro form text field.
         /// </summary>
-        void RenderAppearance()
+        private void RenderAppearance()
         {
 #if true_
             PdfFormXObject xobj = new PdfFormXObject(Owner);
@@ -196,8 +197,11 @@ namespace PdfSharp.Pdf.AcroForms
 
             string text = Text;
             if (text.Length > 0)
-                gfx.DrawString(Text, Font, new XSolidBrush(ForeColor),
-                  rect.ToXRect() - rect.Location + new XPoint(2, 0), XStringFormats.TopLeft);
+            {
+                XTextFormatter tf = new XTextFormatter(gfx);
+                tf.DrawString(Text, Font, new XSolidBrush(ForeColor),
+                    rect.ToXRect() - rect.Location + new XPoint(2, 0), XStringFormats.TopLeft);
+            }
 
             form.DrawingFinished();
             form.PdfForm.Elements.Add("/FormType", new PdfLiteral("1"));
@@ -231,7 +235,7 @@ namespace PdfSharp.Pdf.AcroForms
         }
 
         /// <summary>
-        /// Predefined keys of this dictionary. 
+        /// Predefined keys of this dictionary.
         /// The description comes from PDF 1.4 Reference.
         /// </summary>
         public new class Keys : PdfAcroField.Keys
@@ -247,7 +251,7 @@ namespace PdfSharp.Pdf.AcroForms
             /// </summary>
             internal static DictionaryMeta Meta => _meta ??= CreateMeta(typeof(Keys));
 
-            static DictionaryMeta? _meta;
+            private static DictionaryMeta? _meta;
         }
 
         /// <summary>
