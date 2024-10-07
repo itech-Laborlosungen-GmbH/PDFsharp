@@ -93,7 +93,7 @@ namespace PdfSharp.Pdf
             _lexer = lexer;
         }
 
-        void Initialize()
+        private void Initialize()
         {
             //_info = new PdfInfo(this);
             _fontTable = new PdfFontTable(this);
@@ -122,7 +122,7 @@ namespace PdfSharp.Pdf
             GC.SuppressFinalize(this);
         }
 
-        void Dispose(bool disposing)
+        private void Dispose(bool disposing)
         {
             if (_state != DocumentState.Disposed)
             {
@@ -159,19 +159,22 @@ namespace PdfSharp.Pdf
         /// This function is temporary and will change in the future.
         /// </summary>
         public bool IsPdfA => _isPdfA;  // HACK
-        bool _isPdfA;
+
+        private bool _isPdfA;
 
         /// <summary>
         /// Encapsulates the document’s events.
         /// </summary>
         public DocumentEvents Events => _documentEvents ??= new();
-        DocumentEvents? _documentEvents;
+
+        private DocumentEvents? _documentEvents;
 
         /// <summary>
         /// Encapsulates the document’s render events.
         /// </summary>
         public RenderEvents RenderEvents => _renderEvents ??= new();
-        RenderEvents? _renderEvents;
+
+        private RenderEvents? _renderEvents;
 
         /// <summary>
         /// Gets or sets a value used to distinguish PdfDocument objects.
@@ -182,7 +185,7 @@ namespace PdfSharp.Pdf
         /// <summary>
         /// Get a new default name for a new document.
         /// </summary>
-        static string NewName()
+        private static string NewName()
         {
 #if DEBUG_
             if (PdfDocument.nameCount == 57)
@@ -190,7 +193,8 @@ namespace PdfSharp.Pdf
 #endif
             return "Document #" + ++_nameCount;
         }
-        static int _nameCount;
+
+        private static int _nameCount;
 
         //internal bool CanModify => true;
         internal bool CanModify => _openMode == PdfDocumentOpenMode.Modify;
@@ -313,7 +317,7 @@ namespace PdfSharp.Pdf
         /// <summary>
         /// Implements saving a PDF file.
         /// </summary>
-        async Task DoSaveAsync(PdfWriter writer)
+        private async Task DoSaveAsync(PdfWriter writer)
         {
             PdfSharpLogHost.Logger.PdfDocumentSaved(Name);
 
@@ -396,7 +400,7 @@ namespace PdfSharp.Pdf
             }
         }
 
-        void PrepareForPdfA()  // Just a first hack.
+        private void PrepareForPdfA()  // Just a first hack.
         {
             var internals = Internals;
 
@@ -499,7 +503,8 @@ namespace PdfSharp.Pdf
 
             // @PDF/UA
             // Create PdfMetadata now to include the final document information in XMP generation.
-            Catalog.Elements.SetReference(PdfCatalog.Keys.Metadata, new PdfMetadata(this));
+            if (Catalog.Elements.GetDictionary(PdfCatalog.Keys.Metadata) == null)
+                Catalog.Elements.SetReference(PdfCatalog.Keys.Metadata, new PdfMetadata(this));
         }
 
         /// <summary>
@@ -525,7 +530,7 @@ namespace PdfSharp.Pdf
         public PdfDocumentOptions Options
             => _options ??= new PdfDocumentOptions(this);
 
-        PdfDocumentOptions? _options;
+        private PdfDocumentOptions? _options;
 
         /// <summary>
         /// Gets PDF specific document settings.
@@ -533,7 +538,7 @@ namespace PdfSharp.Pdf
         public PdfDocumentSettings Settings
             => _settings ??= new PdfDocumentSettings(this);
 
-        PdfDocumentSettings? _settings;
+        private PdfDocumentSettings? _settings;
 
         ///// <summary>
         ///// NYI Indicates whether large objects are written immediately to the output stream to reduce
@@ -558,6 +563,7 @@ namespace PdfSharp.Pdf
                 _version = value;
             }
         }
+
         internal int _version;
 
         /// <summary>
@@ -611,12 +617,12 @@ namespace PdfSharp.Pdf
         /// </summary>
         public Guid Guid => _guid;
 
-        readonly Guid _guid = Guid.NewGuid();
+        private readonly Guid _guid = Guid.NewGuid();
 
         internal DocumentHandle Handle
             => _handle ??= new DocumentHandle(this);
 
-        DocumentHandle? _handle;
+        private DocumentHandle? _handle;
 
         /// <summary>
         /// Returns a value indicating whether the document was newly created or opened from an existing document.
@@ -640,7 +646,7 @@ namespace PdfSharp.Pdf
         public PdfDocumentInformation Info
             => _info ??= Trailer.Info;
 
-        PdfDocumentInformation? _info;  // Never changes if once created.
+        private PdfDocumentInformation? _info;  // Never changes if once created.
 
         /// <summary>
         /// This function is intended to be undocumented.
@@ -657,7 +663,8 @@ namespace PdfSharp.Pdf
                 _customValues = null;
             }
         }
-        PdfCustomValues? _customValues;
+
+        private PdfCustomValues? _customValues;
 
         /// <summary>
         /// Get the pages dictionary.
@@ -665,7 +672,7 @@ namespace PdfSharp.Pdf
         public PdfPages Pages
             => _pages ??= Catalog.Pages;
 
-        PdfPages? _pages;  // Never changes if once created.
+        private PdfPages? _pages;  // Never changes if once created.
 
         /// <summary>
         /// Gets or sets a value specifying the page layout to be used when the document is opened.
@@ -724,6 +731,7 @@ namespace PdfSharp.Pdf
         /// </summary>
         public PdfSecuritySettings SecuritySettings
             => _securitySettings ??= new(this);
+
         internal PdfSecuritySettings? _securitySettings;
 
         /// <summary>
@@ -750,20 +758,23 @@ namespace PdfSharp.Pdf
         /// </summary>
         internal PdfFontTable FontTable
             => _fontTable ??= new(this);
-        PdfFontTable? _fontTable;
+
+        private PdfFontTable? _fontTable;
 
         /// <summary>
         /// Gets the document image table that holds all images used in the current document.
         /// </summary>
         internal PdfImageTable ImageTable
             => _imageTable ??= new(this);
-        PdfImageTable? _imageTable;
+
+        private PdfImageTable? _imageTable;
 
         /// <summary>
         /// Gets the document form table that holds all form external objects used in the current document.
         /// </summary>
         internal PdfFormXObjectTable FormTable  // TODO: Rename to ExternalDocumentTable.
             => _formTable ??= new(this);
+
         PdfFormXObjectTable? _formTable;
 
         /// <summary>
@@ -771,14 +782,16 @@ namespace PdfSharp.Pdf
         /// </summary>
         internal PdfExtGStateTable ExtGStateTable
             => _extGStateTable ??= new(this);
-        PdfExtGStateTable? _extGStateTable;
+
+        private PdfExtGStateTable? _extGStateTable;
 
         /// <summary>
         /// Gets the document PdfFontDescriptorCache that holds all PdfFontDescriptor objects used in the current document.
         /// </summary>
         internal PdfFontDescriptorCache PdfFontDescriptorCache
             => _pdfFontDescriptorCache ??= new(this);
-        PdfFontDescriptorCache? _pdfFontDescriptorCache;
+
+        private PdfFontDescriptorCache? _pdfFontDescriptorCache;
 
         /// <summary>
         /// Gets the PdfCatalog of the current document.
@@ -786,7 +799,7 @@ namespace PdfSharp.Pdf
         internal PdfCatalog Catalog
             => _catalog ??= Trailer.Root;
 
-        PdfCatalog? _catalog;  // never changes if once created
+        private PdfCatalog? _catalog;  // never changes if once created
 
         /// <summary>
         /// Gets the PdfInternals object of this document, that grants access to some internal structures
@@ -795,11 +808,11 @@ namespace PdfSharp.Pdf
         public new PdfInternals Internals
             => _internals ??= new PdfInternals(this);
 
-        PdfInternals? _internals;
+        private PdfInternals? _internals;
 
         /// <summary>
         /// Creates a new page and adds it to this document.
-        /// Depending on the IsMetric property of the current region the page size is set to 
+        /// Depending on the IsMetric property of the current region the page size is set to
         /// A4 or Letter respectively. If this size is not appropriate it should be changed before
         /// any drawing operations are performed on the page.
         /// </summary>
@@ -931,7 +944,7 @@ namespace PdfSharp.Pdf
         /// </summary>
         internal static ThreadLocalStorage Tls => tls ??= new ThreadLocalStorage();
 
-        [ThreadStatic] static ThreadLocalStorage? tls;
+        [ThreadStatic] private static ThreadLocalStorage? tls;
 
         [DebuggerDisplay("(ID={ID}, alive={IsAlive})")]
         internal class DocumentHandle(PdfDocument document)
@@ -940,12 +953,9 @@ namespace PdfSharp.Pdf
 
             public PdfDocument? Target => _weakRef.Target as PdfDocument;
 
-            readonly WeakReference _weakRef = new(document);
+            private readonly WeakReference _weakRef = new(document);
 
             public readonly string ID = document._guid.ToString("B").ToUpper();
-
-
-
 
             public override bool Equals(object? obj)
             {
