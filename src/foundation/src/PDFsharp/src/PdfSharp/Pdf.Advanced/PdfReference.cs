@@ -166,7 +166,7 @@ namespace PdfSharp.Pdf.Advanced
         public PdfObject Value
         {
             get => _value;
-            internal set
+            set
             {
                 Debug.Assert(value != null, "The value of a PdfReference must never be null.");
                 Debug.Assert(value.Reference == null || ReferenceEquals(value.Reference, this), "The reference of the value must be null or this.");

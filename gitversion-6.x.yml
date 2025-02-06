@@ -36,7 +36,7 @@ branches:
   feature: # Features and bug fixes.
     # branch:  feature/my-new-feature           -- arbitrary name, e.g. a new preview
     # version: {6.0.0}-dev-{my-new-feature}.123 -- taken from git tag plus 'dev-' plus branch name plus commit count
-    regex: ^(user|feature|fix)[/-]
+    regex: ^(user|feature|fix(es)?)[/-]
     mode: ContinuousDeployment
     increment: None
     label: 'dev-{BranchName}'
