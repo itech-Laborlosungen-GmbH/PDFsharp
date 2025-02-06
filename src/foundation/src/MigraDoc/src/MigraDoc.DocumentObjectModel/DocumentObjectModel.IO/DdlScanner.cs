@@ -94,7 +94,7 @@ namespace MigraDoc.DocumentObjectModel.IO
                 Symbol = Symbol.StringLiteral;
                 TokenType = TokenType.StringLiteral;
             }
-            //NYI: else if (IsNumber())
+            // NYI: else if (IsNumber())
             //      symbol = ScanNumber(false);
             else if (IsDigit(_currChar) ||
                      _currChar is '-' or '+' && IsDigit(_nextChar))
@@ -589,7 +589,7 @@ namespace MigraDoc.DocumentObjectModel.IO
                         break;
 
                     case Chars.LF:
-                        ScanNextChar(); // read beyond EOL
+                        ScanNextChar(); // Read beyond EOL
                         if (rootLevel)
                         {
                             // At nesting level 0 (root level) a new line ends the paragraph content.
@@ -606,7 +606,7 @@ namespace MigraDoc.DocumentObjectModel.IO
                                 return false;
                             }
 
-                            //TODO NiSc NYI
+                            // TODO_OLD NiSc NYI
                             //Check.NotImplemented("empty line at non-root level");
                         }
                         break;
@@ -816,7 +816,7 @@ namespace MigraDoc.DocumentObjectModel.IO
                         break;
 
                     case Chars.LF:
-                        //NYI: Unix uses LF only
+                        // NYI: Unix uses LF only
                         _idxLine++;
                         _idxLinePos = 0;
                         break;
@@ -1410,7 +1410,7 @@ namespace MigraDoc.DocumentObjectModel.IO
                             }
                             break;
 
-                        //NYI: octal numbers
+                        // NYI: octal numbers
                         //case '0':
                         //{
                         //  ScanNextChar();

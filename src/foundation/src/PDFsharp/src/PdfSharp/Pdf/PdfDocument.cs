@@ -140,7 +140,7 @@ namespace PdfSharp.Pdf
         }
 
         /// <summary>
-        /// Gets or sets a user defined object that contains arbitrary information associated with this document.
+        /// Gets or sets a user-defined object that contains arbitrary information associated with this document.
         /// The tag is not used by PDFsharp.
         /// </summary>
         public object? Tag { get; set; }
@@ -148,7 +148,7 @@ namespace PdfSharp.Pdf
         /// <summary>
         /// Temporary hack to set a value that tells PDFsharp to create a PDF/A conform document.
         /// </summary>
-        public void SetPdfA()  // HACK
+        public void SetPdfA()  // HACK_OLD
         {
             _isPdfA = true;
             _ = UAManager.ForDocument(this);
@@ -158,7 +158,7 @@ namespace PdfSharp.Pdf
         /// Gets a value indicating that you create a PDF/A conform document.
         /// This function is temporary and will change in the future.
         /// </summary>
-        public bool IsPdfA => _isPdfA;  // HACK
+        public bool IsPdfA => _isPdfA;  // HACK_OLD
 
         private bool _isPdfA;
 
@@ -274,6 +274,9 @@ namespace PdfSharp.Pdf
         {
             EnsureNotYetSaved();
 
+            if (!stream.CanWrite)
+                throw new InvalidOperationException(PsMsgs.StreamMustBeWritable);
+
             if (!CanModify)
                 throw new InvalidOperationException(PsMsgs.CannotModify);
 
@@ -281,7 +284,7 @@ namespace PdfSharp.Pdf
             if (IsPdfA)
                 PrepareForPdfA();
 
-            // TODO: more diagnostic checks
+            // TODO_OLD: more diagnostic checks
             string message = "";
             if (!CanSave(ref message))
                 throw new PdfSharpException(message);
@@ -501,7 +504,7 @@ namespace PdfSharp.Pdf
             IrefTable.Renumber();
 #endif
 
-            // @PDF/UA
+            // #PDF-UA
             // Create PdfMetadata now to include the final document information in XMP generation.
             if (Catalog.Elements.GetDictionary(PdfCatalog.Keys.Metadata) == null)
                 Catalog.Elements.SetReference(PdfCatalog.Keys.Metadata, new PdfMetadata(this));
@@ -558,7 +561,7 @@ namespace PdfSharp.Pdf
 
                 if (!CanModify)
                     throw new InvalidOperationException(PsMsgs.CannotModify);
-                if (value is < 12 or > 20) // TODO not really implemented
+                if (value is < 12 or > 20) // TODO_OLD not really implemented
                     throw new ArgumentException(PsMsgs.InvalidVersionNumber(value), nameof(value));
                 _version = value;
             }
@@ -772,7 +775,7 @@ namespace PdfSharp.Pdf
         /// <summary>
         /// Gets the document form table that holds all form external objects used in the current document.
         /// </summary>
-        internal PdfFormXObjectTable FormTable  // TODO: Rename to ExternalDocumentTable.
+        internal PdfFormXObjectTable FormTable  // TODO_OLD: Rename to ExternalDocumentTable.
             => _formTable ??= new(this);
 
         PdfFormXObjectTable? _formTable;
@@ -938,6 +941,7 @@ namespace PdfSharp.Pdf
 
         //internal static GlobalObjectTable Gob = new GlobalObjectTable();
 
+#if true
         /// <summary>
         /// Gets the ThreadLocalStorage object. It is used for caching objects that should be created
         /// only once.
@@ -945,6 +949,7 @@ namespace PdfSharp.Pdf
         internal static ThreadLocalStorage Tls => tls ??= new ThreadLocalStorage();
 
         [ThreadStatic] private static ThreadLocalStorage? tls;
+#endif
 
         [DebuggerDisplay("(ID={ID}, alive={IsAlive})")]
         internal class DocumentHandle(PdfDocument document)
@@ -983,9 +988,9 @@ namespace PdfSharp.Pdf
                 return;
 
             var message = "The document was already saved and cannot be modified anymore. " +
-                          "Saving a document converts its in memory representation into a PDF file or stream. " +
+                          "Saving a document converts its in-memory representation into a PDF file or stream. " +
                           "This can only be done once. " +
-                          "After that process the in memory representation is outdated and protected against further modification.";
+                          "After that process the in-memory representation is outdated and protected against further modification.";
             throw new InvalidOperationException(message);
         }
 

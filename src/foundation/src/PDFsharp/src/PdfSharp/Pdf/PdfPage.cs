@@ -8,6 +8,7 @@ using PdfSharp.Drawing;
 using PdfSharp.Logging;
 using PdfSharp.Pdf.Advanced;
 using PdfSharp.Pdf.Annotations;
+using InvalidOperationException = System.InvalidOperationException;
 
 namespace PdfSharp.Pdf
 {
@@ -18,14 +19,14 @@ namespace PdfSharp.Pdf
     {
         /// <summary>
         /// Initializes a new page. The page must be added to a document before it can be used.
-        /// Depending on the IsMetric property of the current region the page size is set to 
-        /// A4 or Letter respectively. If this size is not appropriate it should be changed before
+        /// Depending on the IsMetric property of the current region, the page size is set to 
+        /// A4 or Letter, respectively. If this size is not appropriate it should be changed before
         /// any drawing operations are performed on the page.
         /// </summary>
         public PdfPage()
         {
             Elements.SetName(Keys.Type, "/Page");
-            Initialize();
+            Initialize(false);
         }
 
         /// <summary>
@@ -37,54 +38,37 @@ namespace PdfSharp.Pdf
         {
             Elements.SetName(Keys.Type, "/Page");
             Elements[Keys.Parent] = document.Pages.Reference;
-            Initialize();
+            Initialize(false);
         }
 
         internal PdfPage(PdfDictionary dict)
             : base(dict)
         {
-            // #DELETE Delete old page orientation code 2024-12-24.
-
-            ////// Set Orientation depending on /Rotate.
-
-            //////!!!modTHHO 2016-06-16 Do not set Orientation here. Setting Orientation is not enough. Other properties must also be changed when setting Orientation.
-            //////!!!modTHHO 2018-04-05 Restored the old behavior. Commenting the next three lines out is not enough either.
-            ////// New approach: remember that Orientation was set based on rotation.
-
-            // NEW: Rotate has nothing to do with Orientation.
-            int rotate = Elements.GetInteger(InheritablePageKeys.Rotate);
-            if (Math.Abs((rotate / 90)) % 2 == 1)
-            {
-#if true
-                _orientation = PageOrientation.Landscape;
-                // Hacky approach: do not swap width and height on saving when orientation was set here.
-                //_orientationSetByCodeForRotatedDocument = true;
-#else
-                // Cleaner approach: Swap width and height here. But some drawing routines will not draw the XPdfForm correctly, so this needs more testing and more changes.
-                // When saving, width and height will be swapped. So we have to swap them here too.
-                PdfRectangle mediaBox = MediaBox;
-                MediaBox = new PdfRectangle(mediaBox.X1, mediaBox.Y1, mediaBox.Y2, mediaBox.X2);
-#endif
-            }
-
-            // Setup page size from MediaBox.
-            var rectangle = Elements.GetRectangle(InheritablePageKeys.MediaBox, true);
-            _width = XUnit.FromPoint(rectangle.X2 - rectangle.X1);
-            _height = XUnit.FromPoint(rectangle.Y2 - rectangle.Y1);
-            UpdateOrientation();
+            Initialize(true);
         }
 
-        void Initialize()
+        internal void Initialize(bool setupSizeFromMediaBox)
         {
-            Size = RegionInfo.CurrentRegion.IsMetric ? PageSize.A4 : PageSize.Letter;
+            if (setupSizeFromMediaBox)
+            {
+                // Setup page size from MediaBox.
+                var rectangle = Elements.GetRectangle(InheritablePageKeys.MediaBox, false);
+                if (rectangle.IsZero)
+                    throw new InvalidOperationException("Page has no MediaBox.");
 
-            // Done by Size.
-            ////// Force creation of MediaBox object by getting the value.
-            ////Elements.GetRectangle(InheritablePageKeys.MediaBox, true); ;
+                _width = XUnit.FromPoint(rectangle.X2 - rectangle.X1);
+                _height = XUnit.FromPoint(rectangle.Y2 - rectangle.Y1);
+                UpdateOrientation();
+            }
+            else
+            {
+                // Setting the MediaBox is done in Size.
+                Size = RegionInfo.CurrentRegion.IsMetric ? PageSize.A4 : PageSize.Letter;
+            }
         }
 
         /// <summary>
-        /// Gets or sets a user defined object that contains arbitrary information associated with this PDF page.
+        /// Gets or sets a user-defined object that contains arbitrary information associated with this PDF page.
         /// The tag is not used by PDFsharp.
         /// </summary>
         public object? Tag { get; set; }
@@ -92,13 +76,10 @@ namespace PdfSharp.Pdf
         /// <summary>
         /// Closes the page. A closed page cannot be modified anymore, and it is not possible to
         /// get an XGraphics object for a closed page. Closing a page is not required, but may save
-        /// resources if the document has many pages. 
+        /// resources if the document has many pages.
         /// </summary>
         public void Close()
         {
-            //// Close renderer, if any
-            //if (_content.pdfRenderer != null)
-            //  _content.pdfRenderer.endp.Close();
             _closed = true;
         }
         bool _closed;
@@ -132,28 +113,31 @@ namespace PdfSharp.Pdf
         /// If the page width is less than or equal to page height, the orientation is Portrait;
         /// otherwise Landscape.
         /// </summary>
-        // Old and wrong:
-        // If an imported page has a /Rotate value that matches the formula 90 + n * 180 the 
-        // orientation is set to PageOrientation.Landscape.
         public PageOrientation Orientation
         {
             get => _orientation;
             set
             {
-#if true
+                // In case that _width == _height orientation is already Portrait and cannot be changed.
                 switch (value)
                 {
                     case PageOrientation.Portrait:
-                        if (_width > _height)  // Is it currently Landscape?
+                        // Is it currently Landscape?
+                        if (_width > _height)
                         {
                             Debug.Assert(_orientation == PageOrientation.Landscape);
                             (_width, _height) = (_height, _width);
                             _orientation = value;
                             MediaBox = new PdfRectangle(0, 0, _width.Point, _height.Point);
                         }
+                        else
+                        {
+                            Debug.Assert(_orientation == PageOrientation.Portrait);
+                        }
                         break;
 
-                    case PageOrientation.Landscape:  // Is it currently Portrait?
+                    case PageOrientation.Landscape:
+                        // Is it currently Portrait?
                         if (_width < _height)
                         {
                             Debug.Assert(_orientation == PageOrientation.Portrait);
@@ -161,55 +145,44 @@ namespace PdfSharp.Pdf
                             _orientation = value;
                             MediaBox = new PdfRectangle(0, 0, _width.Point, _height.Point);
                         }
-                        //else
-                        //{
-                        //    // Quadratic page cannot be set to Landscape.
-                        //    if (_width == _height)
-                        //        return;
-                        //}
+                        else
+                        {
+                            // Quadratic page is considered to be Portrait.
+                            Debug.Assert(_orientation == PageOrientation.Landscape || _width == _height);
+                        }
                         break;
 
                     default:
                         throw new ArgumentOutOfRangeException(nameof(value), value, null);
                 }
-#else
-                _orientation = value;
-                _orientationSetByCodeForRotatedDocument = false;
-#endif
             }
         }
         PageOrientation _orientation;
 
-        //////////bool _orientationSetByCodeForRotatedDocument;
-        ////// TODO Simplify the implementation. Should /Rotate 90 lead to Landscape format?
-        ////// TODO Clean implementation without _orientationSetByCodeForRotatedDocument.
-
         void UpdateOrientation()
         {
+            // Quadratic page is considered to be Portrait.
             _orientation = _width <= _height
                 ? PageOrientation.Portrait
                 : PageOrientation.Landscape;
         }
 
         /// <summary>
-        /// Sets one of the predefined standard sizes like.
+        /// Sets one of the predefined standard sizes.
         /// </summary>
         public PageSize Size
         {
-            [Obsolete("Use PageSize to get the absolute size of the page.")]
-            get => _pageSize;
+            [Obsolete("Use Width and Height to get the absolute size of the page.")]
+            get => throw new InvalidOperationException("Cannot get PageSize. Use Width or Height instead.");
             set
             {
                 if (!Enum.IsDefined(typeof(PageSize), value))
                     throw new InvalidEnumArgumentException(nameof(value), (int)value, typeof(PageSize));
 
                 var size = PageSizeConverter.ToSize(value);
-                //// MediaBox is always in Portrait mode (see Height, Width).
-                //// So take Orientation NOT into account.
-                MediaBox = new PdfRectangle(0, 0, size.Width, size.Height);
+                MediaBox = new(0, 0, size.Width, size.Height);
             }
         }
-        PageSize _pageSize;
 
         /// <summary>
         /// Gets or sets the trim margins.
@@ -218,14 +191,12 @@ namespace PdfSharp.Pdf
         {
             get
             {
-                if (_trimMargins == default!)
-                    _trimMargins = new TrimMargins();
+                _trimMargins ??= new TrimMargins();
                 return _trimMargins;
             }
             set
             {
-                if (_trimMargins == default!)
-                    _trimMargins = new TrimMargins();
+                _trimMargins ??= new TrimMargins();
                 if (value != null!)
                 {
                     _trimMargins.Left = value.Left;
@@ -237,7 +208,7 @@ namespace PdfSharp.Pdf
                     _trimMargins.All = XUnit.Zero;
             }
         }
-        TrimMargins _trimMargins = new TrimMargins();
+        TrimMargins? _trimMargins;
 
         /// <summary>
         /// Gets or sets the media box directly. XGraphics is not prepared to work with a media box
@@ -260,12 +231,45 @@ namespace PdfSharp.Pdf
         }
 
         /// <summary>
+        /// Gets a value indicating whether a media box is set.
+        /// </summary>
+        public bool HasMediaBox => Elements[InheritablePageKeys.MediaBox] != null;
+
+        /// <summary>
+        /// Gets a copy of the media box if it exists, or PdfRectangle.Empty if no media box is set.
+        /// </summary>
+        public PdfRectangle MediaBoxReadOnly => Elements.GetRectangle(InheritablePageKeys.MediaBox, false);
+
+        /// <summary>
         /// Gets or sets the crop box.
         /// </summary>
         public PdfRectangle CropBox
         {
             get => Elements.GetRectangle(InheritablePageKeys.CropBox, true);
             set => Elements.SetRectangle(InheritablePageKeys.CropBox, value);
+        }
+
+        /// <summary>
+        /// Gets a value indicating whether a crop box is set.
+        /// </summary>
+        public bool HasCropBox => Elements[InheritablePageKeys.CropBox] != null;
+
+        /// <summary>
+        /// Gets a copy of the crop box if it exists, or PdfRectangle.Empty if no crop box is set.
+        /// </summary>
+        public PdfRectangle CropBoxReadOnly => Elements.GetRectangle(InheritablePageKeys.CropBox, false);
+
+        /// <summary>
+        /// Gets a copy of the effective crop box if it exists, or PdfRectangle.Empty if neither crop box nor media box are set.
+        /// </summary>
+        public PdfRectangle EffectiveCropBoxReadOnly
+        {
+            get
+            {
+                if (HasCropBox)
+                    return CropBox;
+                return MediaBoxReadOnly;
+            }
         }
 
         /// <summary>
@@ -278,12 +282,58 @@ namespace PdfSharp.Pdf
         }
 
         /// <summary>
+        /// Gets a value indicating whether a bleed box is set.
+        /// </summary>
+        public bool HasBleedBox => Elements[Keys.BleedBox] != null;
+
+        /// <summary>
+        /// Gets a copy of the bleed box if it exists, or PdfRectangle.Empty if no bleed box is set.
+        /// </summary>
+        public PdfRectangle BleedBoxReadOnly => Elements.GetRectangle(Keys.BleedBox, false);
+
+        /// <summary>
+        /// Gets a copy of the effective bleed box if it exists, or PdfRectangle.Empty if neither bleed box nor crop box nor media box are set.
+        /// </summary>
+        public PdfRectangle EffectiveBleedBoxReadOnly
+        {
+            get
+            {
+                if (HasBleedBox)
+                    return BleedBox;
+                return EffectiveCropBoxReadOnly;
+            }
+        }
+
+        /// <summary>
         /// Gets or sets the art box.
         /// </summary>
         public PdfRectangle ArtBox
         {
             get => Elements.GetRectangle(Keys.ArtBox, true);
             set => Elements.SetRectangle(Keys.ArtBox, value);
+        }
+
+        /// <summary>
+        /// Gets a value indicating whether an art box is set.
+        /// </summary>
+        public bool HasArtBox => Elements[Keys.ArtBox] != null;
+
+        /// <summary>
+        /// Gets a copy of the art box if it exists, or PdfRectangle.Empty if no art box is set.
+        /// </summary>
+        public PdfRectangle ArtBoxReadOnly => Elements.GetRectangle(Keys.ArtBox, false);
+
+        /// <summary>
+        /// Gets a copy of the effective art box if it exists, or PdfRectangle.Empty if neither art box nor crop box nor media box are set.
+        /// </summary>
+        public PdfRectangle EffectiveArtBoxReadOnly
+        {
+            get
+            {
+                if (HasArtBox)
+                    return ArtBox;
+                return EffectiveCropBoxReadOnly;
+            }
         }
 
         /// <summary>
@@ -296,38 +346,52 @@ namespace PdfSharp.Pdf
         }
 
         /// <summary>
+        /// Gets a value indicating whether a trim box is set.
+        /// </summary>
+        public bool HasTrimBox => Elements[Keys.TrimBox] != null;
+
+        /// <summary>
+        /// Gets a copy of the trim box if it exists, or PdfRectangle.Empty if no trim box is set.
+        /// </summary>
+        public PdfRectangle TrimBoxReadOnly => Elements.GetRectangle(Keys.TrimBox, false);
+
+        /// <summary>
+        /// Gets a copy of the effective trim box if it exists, or PdfRectangle.Empty if neither trim box nor crop box nor media box are set.
+        /// </summary>
+        public PdfRectangle EffectiveTrimBoxReadOnly
+        {
+            get
+            {
+                if (HasTrimBox)
+                    return TrimBox;
+                return EffectiveCropBoxReadOnly;
+            }
+        }
+
+        /// <summary>
         /// Gets or sets the height of the page.
         /// If the page width is less than or equal to page height, the orientation is Portrait;
         /// otherwise Landscape.
         /// </summary>
-        // ---
-        // If orientation is Landscape, this function applies to
-        // the width.
         public XUnit Height
         {
+#if DEBUG
             get
             {
-#if true        // #PageOrientation
+                var rectangle = Elements.GetRectangle(InheritablePageKeys.MediaBox, true);
+                var height = XUnit.FromPoint(rectangle.Y2 - rectangle.Y1);
+                Debug.Assert(height == _height);
                 return _height;
-#else
-                var rect = MediaBox;
-                return _orientation == PageOrientation.Portrait ? XUnit.FromPoint(rect.Height) : XUnit.FromPoint(rect.Width);
-#endif
             }
+#else
+            get => _height;
+#endif
             set
             {
-#if true        // #PageOrientation
+                // #PageOrientation
                 _height = value;
                 var rect = MediaBox;
                 MediaBox = new PdfRectangle(rect.X1, 0, rect.X2, _height.Point);
-#else
-                var rect = MediaBox;
-                if (_orientation == PageOrientation.Portrait)
-                    MediaBox = new PdfRectangle(rect.X1, 0, rect.X2, value.Point);
-                else
-                    MediaBox = new PdfRectangle(0, rect.Y1, value.Point, rect.Y2);
-#endif
-                _pageSize = PageSize.Undefined;
                 UpdateOrientation();
             }
         }
@@ -338,34 +402,25 @@ namespace PdfSharp.Pdf
         /// If the page width is less than or equal to page height, the orientation is Portrait;
         /// otherwise Landscape.
         /// </summary>
-        // ---
-        // If orientation is Landscape, this function applies to
-        // the height.
         public XUnit Width
         {
+#if DEBUG
             get
             {
-#if true        // #PageOrientation
+                var rectangle = Elements.GetRectangle(InheritablePageKeys.MediaBox, true);
+                var width = XUnit.FromPoint(rectangle.X2 - rectangle.X1);
+                Debug.Assert(width == _width);
                 return _width;
-#else
-                var rect = MediaBox;
-                return _orientation == PageOrientation.Portrait ? XUnit.FromPoint(rect.Width) : XUnit.FromPoint(rect.Height);
-#endif
             }
+#else
+            get => _width;
+#endif
             set
             {
-#if true        // #PageOrientation
+                // #PageOrientation
                 _width = value;
                 var rect = MediaBox;
                 MediaBox = new PdfRectangle(0, rect.Y1, _width.Point, rect.Y2);
-#else
-                var rect = MediaBox;
-                if (_orientation == PageOrientation.Portrait)
-                    MediaBox = new PdfRectangle(0, rect.Y1, value.Point, rect.Y2);
-                else
-                    MediaBox = new PdfRectangle(rect.X1, 0, rect.X2, value.Point);
-#endif
-                _pageSize = PageSize.Undefined;
                 UpdateOrientation();
             }
         }
@@ -465,7 +520,7 @@ namespace PdfSharp.Pdf
                                     array = array.Clone();
                                     array.Document = Owner;
                                 }
-                                // TODO 4STLA: Causes Exception "Object type transformation must not be done with direct objects" in "protected PdfObject(PdfObject obj)"
+                                // TODO_OLD 4STLA: Causes Exception "Object type transformation must not be done with direct objects" in "protected PdfObject(PdfObject obj)"
                                 _contents = new PdfContents(array);
                             }
                             else
@@ -503,7 +558,7 @@ namespace PdfSharp.Pdf
             {
                 if (_hasAnnotations == null)
                 {
-                    // Get annotations array if exists.
+                    // Get annotations array if it exists.
                     _hasAnnotations = (PdfAnnotations?)Elements.GetValue(Keys.Annots) != null;
                 }
                 return _hasAnnotations.Value;
@@ -576,7 +631,7 @@ namespace PdfSharp.Pdf
         /// <param name="destinationPath">The path to the named destination through the embedded documents.
         /// The path is separated by '\' and the last segment is the name of the named destination.
         /// The other segments describe the route from the current (root or embedded) document to the embedded document holding the destination.
-        /// ".." references to the parent, other strings refer to a child with this name in the EmbeddedFiles name dictionary.</param>
+        /// ".." references the parent, other strings refer to a child with this name in the EmbeddedFiles name dictionary.</param>
         /// <param name="newWindow">True, if the destination document shall be opened in a new window.
         /// If not set, the viewer application should behave in accordance with the current user preference.</param>
         public PdfLinkAnnotation AddEmbeddedDocumentLink(PdfRectangle rect, string destinationPath, bool? newWindow = null)
@@ -630,9 +685,9 @@ namespace PdfSharp.Pdf
 
         #endregion
 
-        // TODO: PdfActions
+        // TODO_OLD: PdfActions
 
-        // TODO: PdfPageTransition
+        // TODO_OLD: PdfPageTransition
 
 
         /// <summary>
@@ -750,27 +805,15 @@ namespace PdfSharp.Pdf
 
         internal override void WriteObject(PdfWriter writer)
         {
-            ////// HACK: temporarily flip media box if Landscape
-            ////PdfRectangle mediaBox = MediaBox;
-            ////// TODO: Take /Rotate into account
-            //////!!!newTHHO 2018-04-05 Stop manipulating the MediaBox - Height and Width properties already take orientation into account.
-            //////!!!delTHHO 2018-04-05 if (_orientation == PageOrientation.Landscape)
-            //////!!!delTHHO 2018-04-05     MediaBox = new PdfRectangle(mediaBox.X1, mediaBox.Y1, mediaBox.Y2, mediaBox.X2);
-            ////// One step back - swap members in MediaBox for landscape orientation.
-
-#if false   // #PageOrientation
-            if (_orientation == PageOrientation.Landscape && !_orientationSetByCodeForRotatedDocument)
-                MediaBox = new PdfRectangle(mediaBox.X1, mediaBox.Y1, mediaBox.Y2, mediaBox.X2);
-#endif
-
-#if true  // #PDF-A  Suppress transparency group if PDF-A is required
+            // #PDF-A
+            // Suppress transparency group if PDF-A is required.
             if (!_document.IsPdfA)
             {
                 // Add transparency group to prevent rendering problems of Adobe viewer.
                 // Update (PDFsharp 1.50 beta 3): Add transparency group only if ColorMode is defined.
                 // Rgb is the default for the ColorMode, but if user sets it to Undefined then
                 // we respect this and skip the transparency group.
-                TransparencyUsed = true; // TODO: check XObjects
+                TransparencyUsed = true; // TODO_OLD: check XObjects
                 if (TransparencyUsed && !Elements.ContainsKey(Keys.Group) &&
                     _document.Options.ColorMode != PdfColorMode.Undefined)
                 {
@@ -788,26 +831,11 @@ namespace PdfSharp.Pdf
                     //False is default: group.Elements["/K"] = new PdfBoolean(false);
                 }
             }
-#endif
-
-#if DEBUG_
-            PdfItem item = Elements["/MediaBox"];
-            if (item != null)
-                _ = typeof(int);
-#endif
             base.WriteObject(writer);
-
-            //!!!delTHHO 2018-04-05 if (_orientation == PageOrientation.Landscape)
-            //!!!delTHHO 2018-04-05    MediaBox = mediaBox;
-            // One step back - swap members in MediaBox for landscape orientation.
-#if false   // #PageOrientation
-            if (_orientation == PageOrientation.Landscape && !_orientationSetByCodeForRotatedDocument)
-                MediaBox = mediaBox;
-#endif
         }
 
         /// <summary>
-        /// Hack to indicate that a page-level transparency group must be created.
+        /// HACK_OLD to indicate that a page-level transparency group must be created.
         /// </summary>
         internal bool TransparencyUsed;
 
@@ -816,7 +844,6 @@ namespace PdfSharp.Pdf
         /// </summary>
         internal static void InheritValues(PdfDictionary page, InheritedValues values)
         {
-            // HACK: I’M ABSOLUTELY NOT SURE WHETHER THIS CODE COVERS ALL CASES.
             if (values.Resources != null!)
             {
                 PdfDictionary? resources;
@@ -893,15 +920,17 @@ namespace PdfSharp.Pdf
 
         internal override void PrepareForSave()
         {
-            if (_trimMargins.AreSet)
+            if (_trimMargins?.AreSet ?? false)
             {
                 // These are the values InDesign set for an A4 page with 3mm crop margin at each edge.
-                // (recall that PDF rect are two points and NOT a point and a width)
-                // /MediaBox[0.0 0.0 612.283 858.898]  216 302.7
-                // /CropBox[0.0 0.0 612.283 858.898]
-                // /BleedBox[0.0 0.0 612.283 858.898]
-                // /ArtBox[8.50394 8.50394 603.78 850.394] 3 3 213 300
-                // /TrimBox[8.50394 8.50394 603.78 850.394]
+                // (recall that PDF rectangles are two points and NOT a point and width and height)
+                // /MediaBox[0.0 0.0 612.283 858.898]       # in millimeter: (0 0) (216 302.7)
+                // /CropBox[0.0 0.0 612.283 858.898]        # -------------- " ---------------
+                // /BleedBox[0.0 0.0 612.283 858.898]       # -------------- " ---------------
+                // /ArtBox[8.50394 8.50394 603.78 850.394]  # in millimeter: (3 3) (213 300)
+                // /TrimBox[8.50394 8.50394 603.78 850.394] # ------------- " --------------
+                //
+                // An A4 page has a size of 210 x 297 mm²
 
                 double width = _trimMargins.Left.Point + Width.Point + _trimMargins.Right.Point;
                 double height = _trimMargins.Top.Point + Height.Point + _trimMargins.Bottom.Point;

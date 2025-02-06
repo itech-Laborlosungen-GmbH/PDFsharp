@@ -1,12 +1,12 @@
-# PDFsharp & MigraDoc 6
+﻿# PDFsharp & MigraDoc 6
 
-Version **6.2.0 Preview 1**  
-Published **2024-08-12**
+Version **6.2.0 Preview 3**  
+Published **2025-02-06**
 
 This is a preview version of the **PDFsharp** project, the main project of PDFsharp & MigraDoc 6 with updates for C# 12 and .NET 6.
 
-PDFsharp: Copyright (c) 2005-2024 empira Software GmbH, Troisdorf (Cologne Area), Germany
-MigraDoc: Copyright (c) 2001-2024 empira Software GmbH, Troisdorf (Cologne Area), Germany
+PDFsharp: Copyright (c) 2005-2025 empira Software GmbH, Troisdorf (Cologne Area), Germany
+MigraDoc: Copyright (c) 2001-2025 empira Software GmbH, Troisdorf (Cologne Area), Germany
 Published Open Source under the [MIT License](https://docs.pdfsharp.net/LICENSE.html)
 
 For more information see [docs.pdfsharp.net](https://docs.pdfsharp.net/)
@@ -23,7 +23,8 @@ Assets like bitmaps, fonts, or PDF files are not part of the repository anymore.
 You must download them before compiling the solution for the first time.
 Use `download-assets.ps1` in the `dev` folder to create `assets` folder required for some unit tests and needed by some projects.
 
-Execute 
+Execute
+
 ```ps
 .\dev\download-assets.ps1
 ```
@@ -34,7 +35,7 @@ Execute
 
 * You need the latest .NET SDK version installed
 * Please note that you need a git repository with at least one commit in order to build the PDFsharp solution.  
-  Without a git repo with at least one commit, you will get an error message from `GitVersion.MsBuild` while building the solution.
+  Without a git repository with at least one commit, you will get an error message from `GitVersion.MsBuild` while building the solution.
   You can set a tag to define a valid version, e.g.: `git tag v6.2.0` to make it build with a specific version number. Without tag, version 0.1.0 will be used.
 
 ### Central package management

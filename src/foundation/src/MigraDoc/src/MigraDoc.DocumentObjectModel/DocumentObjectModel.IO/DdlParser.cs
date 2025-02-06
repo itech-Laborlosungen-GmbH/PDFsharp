@@ -728,7 +728,7 @@ namespace MigraDoc.DocumentObjectModel.IO
 
             EnsureSymbol(Symbol.ParenLeft);
             ReadCode();
-            //NYI: Check token for correct Unit format
+            // NYI: Check token for correct Unit format
             formattedText.Font.Size = Token;
             ReadCode();
             EnsureSymbol(Symbol.ParenRight);
@@ -960,7 +960,7 @@ namespace MigraDoc.DocumentObjectModel.IO
             ReadCode();
 
             Hyperlink hyperlink = elements.AddHyperlink("");
-            //NYI: Without name and type the hyperlink is senseless, so attributes need to be checked
+            // NYI: Without name and type the hyperlink is senseless, so attributes need to be checked
             if (Symbol == Symbol.BracketLeft)
                 ParseAttributes(hyperlink);
 
@@ -1255,8 +1255,8 @@ namespace MigraDoc.DocumentObjectModel.IO
             // Future syntax by example
             //   \image("Name")
             //   \image("Name")[...]
-            //   \image{base64...}       //NYI
-            //   \image[...]{base64...}  //NYI
+            //   \image{base64...}       // NYI
+            //   \image[...]{base64...}  // NYI
             Debug.Assert(image != null);
 
             try
@@ -1903,7 +1903,7 @@ namespace MigraDoc.DocumentObjectModel.IO
                 switch (Symbol)
                 {
                     case Symbol.Assign:
-                        //DomValueDescriptor is needed from assignment routine.
+                        // DomValueDescriptor is needed from assignment routine.
                         var pvd = doc.Meta[valueName];
                         EnsureCondition(pvd != null, () => MdDomMsgs.InvalidValueName(valueName));
                         ParseAssign(doc, pvd);
@@ -1920,7 +1920,7 @@ namespace MigraDoc.DocumentObjectModel.IO
                         ParagraphFormat paragraphFormat = (ParagraphFormat)doc;
                         TabStops tabStops = paragraphFormat.TabStops;
 
-                        if (true) // HACK in ParseAttributeStatement       // BUG THHO4STLA Already existed in 2019.
+                        if (true) // HACK_OLD in ParseAttributeStatement       // BUG_OLD THHO4STLA Already existed in 2019.
                         {
                             bool fAddItem = Symbol == Symbol.PlusAssign;
                             var tabStop = new TabStop();
@@ -2009,7 +2009,7 @@ namespace MigraDoc.DocumentObjectModel.IO
 
             try
             {
-                // BUG ReviewSTLA
+                // BUG_OLD ReviewSTLA
                 if (valType == typeof(string))
                     ParseStringAssignment(dom, vd);
                 else if (valType == typeof(int))
@@ -2609,7 +2609,7 @@ namespace MigraDoc.DocumentObjectModel.IO
                 switch (Symbol)
                 {
                     case Symbol.Assign:
-                        //read one more symbol
+                        // Read one more symbol.
                         ReadCode();
                         break;
 
